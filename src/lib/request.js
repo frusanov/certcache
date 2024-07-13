@@ -1,4 +1,7 @@
-const { https } = require('catkeys')
+// const { https } = require('catkeys')
+// const https = require('https')
+const http = require('http')
+const fetch = require('node-fetch')
 const debug = require('debug')('certcache:request')
 
 module.exports = (
@@ -6,66 +9,43 @@ module.exports = (
   action,
   payload = {}
 ) => {
-  const postData = JSON.stringify({ action, ...payload })
-  const options = {
-    catRejectMismatchedHostname: false,
-    catKeysDir: catKeysDir,
-    headers: { 'Content-Length': Buffer.from(postData).length },
+  const agent = new http.Agent({
     hostname: host,
-    method: 'POST',
-    path: '/',
     port
-  }
-
-  let _req
-  let isDestroyed = false
-  const promise = new Promise((resolve, reject) => {
-    const response = []
-
-    return https
-      .request(options, (res) => {
-        res.on('data', (data) => response.push(data))
-        res.on('end', () => {
-          const res = response.join('')
-
-          debug('request() response length', res.length)
-
-          const responseObj = JSON.parse(res)
-
-          if (responseObj.success === true) {
-            resolve(responseObj.data)
-          } else {
-            reject(new Error(responseObj.error))
-          }
-        })
-      })
-      .then((req) => {
-        _req = req
-
-        if (isDestroyed) {
-          req.destroy()
-        } else {
-          req.on('error', (e) => {
-            reject(e)
-          })
-
-          debug('request() request', options)
-          debug('request() posting', postData)
-          req.write(postData)
-          req.end()
-
-          return req
-        }
-      })
   })
 
-  promise.destroy = () => {
-    isDestroyed = true
+  const postData = JSON.stringify({ action, ...payload })
 
-    if (_req !== undefined) {
-      _req.destroy()
+  debug('request() request', {
+    host,
+    port,
+    action,
+    payload
+  })
+  debug('request() posting', postData)
+
+  return fetch(`http://${host}:${port}/`, {
+    agent,
+    method: 'POST',
+    body: postData,
+    headers: {
+      'Content-Length': Buffer.from(postData).length
     }
-  }
+  }).then(async (res) => {
+    const data = await res.json()
 
-  return promise
+    debug('request() response', data)
+
+    if (!data.success) {
+      const error = new Error(data.error)
+      error.resBody = data
+
+      throw error
+    }
+
+    return data
+  }).catch(e => {
+    debug('request() error', e)
+    throw e
+  })
 }

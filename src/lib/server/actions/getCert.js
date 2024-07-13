@@ -8,11 +8,12 @@ const getExtensionsForDomains = require('../../getExtensionsForDomains')
 const getConfig = require('../../getConfig')
 const metaItemsMatch = require('../../helpers/metaItemsMatch')
 const normalizeMeta = require('../../normalizeMeta')
+const configManager = require('../../../config/config-manager')
 const getMetaFromCert =
   require('../../getMetaFromExtensionFunction')('getMetaFromCert')
 
 const checkRestrictions = async (clientName, domains) => {
-  const config = await getConfig()
+  const config = await configManager.getConfig()
 
   if (
     config.server.domainAccess !== undefined &&

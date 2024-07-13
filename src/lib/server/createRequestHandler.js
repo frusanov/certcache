@@ -1,52 +1,67 @@
 const FeedbackError = require('../FeedbackError')
+const getConfigManagerSingleton = require('../../config/config-manager')
 const debug = require('debug')('certcache:server')
+const { ZodError } = require('zod')
 
-module.exports = ({ actions }) => (req, res) => {
-  const data = []
+module.exports = function ({ actions }) {
+  return async function (req, res) {
+    const settingsManager = await getConfigManagerSingleton()
+    await settingsManager.updatingPromise
 
-  req.on('data', (chunk) => {
-    data.push(chunk)
-  })
+    const data = []
 
-  req.on('end', async () => {
-    const requestBody = data.join('')
-    let result
+    req.on('data', (chunk) => {
+      data.push(chunk)
+    })
 
-    debug('Request received', requestBody)
+    req.on('end', async () => {
+      const requestBody = data.join('')
+      let code = 200
+      let result
 
-    const { action, ...payload } = JSON.parse(requestBody)
+      debug('Request received', requestBody)
 
-    try {
-      if (actions[action] === undefined) {
-        throw new FeedbackError(`Action '${action}' not found`)
+      const { action, ...payload } = JSON.parse(requestBody)
+
+      try {
+        if (actions[action] === undefined) {
+          throw new FeedbackError(`Action '${action}' not found`)
+        }
+
+        // TODO: remove this fallback
+        const clientName = req.connection.getPeerCertificate
+          ? req.connection.getPeerCertificate().subject.CN
+          : 'unknown'
+
+        result = {
+          success: true,
+          data: await actions[action](payload, { clientName })
+        }
+      } catch (error) {
+        result = { success: false }
+        code = error.code || 500
+
+        if (error instanceof FeedbackError) {
+          result.error = error.message
+        }
+
+        if (error instanceof ZodError) {
+          result.error = 'Validation error'
+          result.details = error.errors
+        }
       }
 
-      const clientName = req.connection.getPeerCertificate().subject.CN
-
-      result = {
-        success: true,
-        data: await actions[action](payload, { clientName })
+      // socket might be destroyed during long running requests (eg. delays
+      // waiting for DNS updates)
+      if (res.socket.destroyed !== true) {
+        res.writeHead(
+          code,
+          { 'Content-Type': 'application/json' }
+        )
+        res.write(JSON.stringify(result))
       }
-    } catch (error) {
-      result = { success: false }
-
-      if (error instanceof FeedbackError) {
-        result.error = error.message
-      }
-
-      console.error(error)
-    }
-
-    // socket might be destroyed during long running requests (eg. delays
-    // waiting for DNS updates)
-    if (res.socket.destroyed !== true) {
-      res.writeHead(
-        result.success ? 200 : 500,
-        { 'Content-Type': 'application/json' }
-      )
-      res.write(JSON.stringify(result))
-    }
-    res.end()
-    debug('Response sent')
-  })
+      res.end()
+      debug('Response sent')
+    })
+  }
 }
