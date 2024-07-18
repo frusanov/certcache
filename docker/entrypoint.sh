@@ -6,7 +6,7 @@ stop() {
 
 trap stop TERM
 
-. /certbot/venv/bin/activate
+# . /certbot/venv/bin/activate
 certcache $@ &
 NODE_PID=$!
 wait $NODE_PID

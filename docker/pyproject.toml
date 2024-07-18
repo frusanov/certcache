@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "certcache"
+version = "1.0.0"
+description = "Adds certbot to certcache."
+authors = ["Alexander Volkov <baffolobill@yandex.ru>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+acme = "^2.11.0"
+certbot = "^2.11.0"
+certbot-dns-rfc2136 = "^2.11.0"
+certbot-dns-standalone = "^1.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
