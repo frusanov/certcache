@@ -13,7 +13,7 @@ module.exports = {
     }
   },
   handler: async (argv) => {
+    await serve(argv);
     await syncPeriodically(true);
-    serve(argv);
   }
 }
