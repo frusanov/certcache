@@ -3,6 +3,6 @@ module.exports = {
     '--preferred-challenges',
     'dns',
     '--authenticator',
-    'certbot-dns-standalone:dns-standalone'
+    'dns-standalone'
   ]
 }

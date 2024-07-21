@@ -6,6 +6,7 @@ module.exports = {
   info: require('./info'),
   ls: require('./ls'),
   serve: require('./serve'),
+  standalone: require('./standalone'),
   sync: require('./sync'),
   test: require('./testCmd')
 }
